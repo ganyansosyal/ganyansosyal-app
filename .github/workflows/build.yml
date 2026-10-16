@@ -30,15 +30,12 @@ jobs:
           npx cap add android
           cp google-services.json android/app/
 
-          # Surum numaralari: Play her yuklemede artan versionCode ister
           sed -i "s/versionCode [0-9]*/versionCode ${{ github.run_number }}/" android/app/build.gradle
           sed -i "s/versionName \"[^\"]*\"/versionName \"1.0.${{ github.run_number }}\"/" android/app/build.gradle
           grep -E "versionCode|versionName" android/app/build.gradle
 
           sed -i 's|<item name="android:background">@null</item>|&<item name="android:windowOptOutEdgeToEdgeEnforcement">true</item><item name="android:statusBarColor">#0E7A5A</item><item name="android:navigationBarColor">#FFFFFF</item><item name="android:windowLightNavigationBar">true</item>|' android/app/src/main/res/values/styles.xml
           grep -c OptOut android/app/src/main/res/values/styles.xml || echo "styles yamasi uygulanmadi"
-
-          # NOT: REQUEST_INSTALL_PACKAGES izni ve kendi kendine guncelleme kodu Play surumunde YOK (politika ihlali)
 
           sed -i 's#</head>#<style>html,body{overscroll-behavior-y:none;-webkit-text-size-adjust:100%;touch-action:manipulation}*{-webkit-tap-highlight-color:transparent;-webkit-touch-callout:none}button,a,[onclick],nav{-webkit-user-select:none;user-select:none}input,textarea{-webkit-user-select:text;user-select:text}button:active,a:active,[onclick]:active{transform:none!important}nav,[class*=bottom-nav],[class*=bottomnav],[class*=tabbar],[class*=tab-bar],[id*=bottomNav],[id*=bottom-nav],[id*=bottomnav]{position:fixed!important;bottom:0!important;left:0;right:0;transform:none!important;translate:none!important;transition:none!important;animation:none!important;will-change:auto!important}nav *,[class*=bottom-nav] *,[class*=tabbar] *{transition:none!important;animation:none!important}[id=au-install],[id=inst-bar],[id=dw-inst]{display:none!important}</style></head>#' www/index.html
           sed -i 's#<head>#<head><script>try{Object.defineProperty(navigator,"standalone",{get:function(){return true}})}catch(e){}try{navigator.serviceWorker.getRegistrations().then(function(r){r.forEach(function(x){x.unregister()})});caches.keys().then(function(k){k.forEach(function(c){caches.delete(c)})});navigator.serviceWorker.register=function(){return Promise.resolve()}}catch(e){}</script>#' www/index.html
