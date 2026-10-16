@@ -3,6 +3,8 @@ on: workflow_dispatch
 jobs:
   build:
     runs-on: ubuntu-latest
+    permissions:
+      contents: write
     steps:
       - uses: actions/checkout@v4
       - uses: actions/checkout@v4
@@ -21,15 +23,63 @@ jobs:
           mkdir www assets
           rsync -a --exclude='.git' --exclude='.github' --exclude='node_modules' --exclude='package*.json' --exclude='tjk-node.js' --exclude='cleanup.js' site/ www/
           cp site/icon-512.png assets/logo.png
+          curl -fsSL https://cdnjs.cloudflare.com/ajax/libs/html-to-image/1.11.11/html-to-image.min.js -o www/html-to-image.min.js || echo "html-to-image indirilemedi"
           npm init -y
           npm i @capacitor/core@7 @capacitor/cli@7 @capacitor/android@7 @capacitor/splash-screen@7 @capacitor-firebase/authentication@7 firebase@11 @capacitor/status-bar@7
           npm i -D @capacitor/assets@3
           npx cap add android
           cp google-services.json android/app/
-          sed -i 's|<item name="android:background">@null</item>|&<item name="android:windowOptOutEdgeToEdgeEnforcement">true</item><item name="android:statusBarColor">#0E7A5A</item>|' android/app/src/main/res/values/styles.xml
+          sed -i 's|<item name="android:background">@null</item>|&<item name="android:windowOptOutEdgeToEdgeEnforcement">true</item><item name="android:statusBarColor">#0E7A5A</item><item name="android:navigationBarColor">#0E7A5A</item><item name="android:windowLightNavigationBar">false</item>|' android/app/src/main/res/values/styles.xml
           grep -c OptOut android/app/src/main/res/values/styles.xml || echo "styles yamasi uygulanmadi"
           sed -i 's#</head>#<style>html,body{overscroll-behavior-y:none;-webkit-text-size-adjust:100%;touch-action:manipulation}*{-webkit-tap-highlight-color:transparent;-webkit-touch-callout:none}button,a,[onclick],nav{-webkit-user-select:none;user-select:none}input,textarea{-webkit-user-select:text;user-select:text}button:active,a:active,[onclick]:active{transform:none!important}nav,[class*=bottom-nav],[class*=bottomnav],[class*=tabbar],[class*=tab-bar],[id*=bottomNav],[id*=bottom-nav],[id*=bottomnav]{position:fixed!important;bottom:0!important;left:0;right:0;transform:none!important;translate:none!important;transition:none!important;animation:none!important;will-change:auto!important}nav *,[class*=bottom-nav] *,[class*=tabbar] *{transition:none!important;animation:none!important}</style></head>#' www/index.html
           sed -i 's#<head>#<head><script>try{navigator.serviceWorker.getRegistrations().then(function(r){r.forEach(function(x){x.unregister()})});caches.keys().then(function(k){k.forEach(function(c){caches.delete(c)})});navigator.serviceWorker.register=function(){return Promise.resolve()}}catch(e){}</script>#' www/index.html
+          cat > www/app-update.js <<'JSEOF'
+          (function () {
+            function native() { return !!(window.Capacitor && Capacitor.isNativePlatform && Capacitor.isNativePlatform()); }
+            function start() {
+              if (!native()) return;
+
+              // APK icinde "Ana ekrana ekle / Yukle" onerileri gereksiz: uygulama zaten yuklu sayilsin
+              try { Object.defineProperty(navigator, 'standalone', { get: function () { return true; } }); } catch (e) {}
+              var st = document.createElement('style');
+              st.textContent = '#au-install,#inst-bar,#dw-inst{display:none!important}';
+              document.head.appendChild(st);
+
+              // Guncelleme kontrolu (6 saatte bir)
+              try {
+                var last = parseInt(localStorage.getItem('gs-upd-check') || '0', 10);
+                if (Date.now() - last < 6 * 3600 * 1000) return;
+              } catch (e) {}
+
+              fetch('app-version.json').then(function (r) { return r.json(); }).then(function (v) {
+                return fetch('https://api.github.com/repos/' + v.repo + '/releases/tags/apk')
+                  .then(function (r) { return r.json(); })
+                  .then(function (rel) {
+                    try { localStorage.setItem('gs-upd-check', String(Date.now())); } catch (e) {}
+                    var m = /build\s*(\d+)/i.exec((rel && rel.body) || '');
+                    var latest = m ? parseInt(m[1], 10) : 0;
+                    if (latest > v.build) showUpdate('https://github.com/' + v.repo + '/releases/download/apk/GanyanSosyal.apk');
+                  });
+              }).catch(function () {});
+            }
+
+            function showUpdate(url) {
+              var b = document.createElement('div');
+              b.style.cssText = 'position:fixed;left:12px;right:12px;top:calc(env(safe-area-inset-top,0px) + 70px);z-index:99999;background:#0E7A5A;color:#fff;border-radius:16px;padding:12px 14px;display:flex;align-items:center;gap:10px;box-shadow:0 8px 24px rgba(0,0,0,.25);font:600 14px system-ui,sans-serif';
+              b.innerHTML = '<span style="flex:1">Yeni s\u00fcr\u00fcm var. G\u00fcncellemek i\u00e7in indir.</span>' +
+                '<button id="gs-upd-go" style="background:#fff;color:#0E7A5A;border:0;border-radius:12px;padding:8px 14px;font:800 13px system-ui,sans-serif">\u0130ndir</button>' +
+                '<button id="gs-upd-x" style="background:transparent;color:#fff;border:0;font:800 18px system-ui,sans-serif;padding:0 4px">\u00d7</button>';
+              document.body.appendChild(b);
+              document.getElementById('gs-upd-go').onclick = function () { window.location.href = url; };
+              document.getElementById('gs-upd-x').onclick = function () { b.remove(); };
+            }
+
+            if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', function () { setTimeout(start, 1500); });
+            else setTimeout(start, 1500);
+          })();
+          JSEOF
+          sed -i 's#</head>#<script src="app-update.js"></script></head>#' www/index.html
+          echo '{"build": ${{ github.run_number }}, "repo": "${{ github.repository }}"}' > www/app-version.json
           node -e "const fs=require('fs');const f='capacitor.config.json';const c=JSON.parse(fs.readFileSync(f));c.android=Object.assign(c.android||{},{adjustMarginsForEdgeToEdge:'auto'});c.plugins=Object.assign(c.plugins||{},{FirebaseAuthentication:{skipNativeAuth:true,providers:['google.com']},StatusBar:{overlaysWebView:false,backgroundColor:'#0E7A5A',style:'DARK'}});fs.writeFileSync(f,JSON.stringify(c,null,2))"
           MA=$(find android/app/src/main/java -name MainActivity.java)
           PKG=$(grep -m1 '^package' $MA)
@@ -38,6 +88,7 @@ jobs:
 
           import android.os.Bundle;
           import android.view.View;
+          import android.graphics.Color;
           import com.getcapacitor.BridgeActivity;
 
           public class MainActivity extends BridgeActivity {
@@ -50,6 +101,31 @@ jobs:
                   getBridge().getWebView().getSettings().setLoadWithOverviewMode(true);
                   getBridge().getWebView().setInitialScale(0);
                           getWindow().setSoftInputMode(android.view.WindowManager.LayoutParams.SOFT_INPUT_ADJUST_RESIZE);
+                  applyBars();
+              }
+
+              @Override
+              public void onResume() {
+                  super.onResume();
+                  applyBars();
+              }
+
+              @Override
+              public void onWindowFocusChanged(boolean hasFocus) {
+                  super.onWindowFocusChanged(hasFocus);
+                  if (hasFocus) applyBars();
+              }
+
+              private void applyBars() {
+                  android.view.Window w = getWindow();
+                  w.addFlags(android.view.WindowManager.LayoutParams.FLAG_DRAWS_SYSTEM_BAR_BACKGROUNDS);
+                  w.setStatusBarColor(Color.parseColor("#0E7A5A"));
+                  w.setNavigationBarColor(Color.parseColor("#0E7A5A"));
+                  w.setBackgroundDrawable(new android.graphics.drawable.ColorDrawable(Color.parseColor("#0E7A5A")));
+                  w.getDecorView().setBackgroundColor(Color.parseColor("#0E7A5A"));
+                  if (android.os.Build.VERSION.SDK_INT >= 29) {
+                      w.setNavigationBarContrastEnforced(false);
+                  }
               }
           }
           EOF
@@ -69,3 +145,11 @@ jobs:
         with:
           name: GanyanSosyal-APK
           path: GanyanSosyal.apk
+      - name: APK'yi indirilebilir surume yukle
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: apk
+          name: GanyanSosyal APK (son surum)
+          files: GanyanSosyal.apk
+          body: "build ${{ github.run_number }}"
+          make_latest: true
