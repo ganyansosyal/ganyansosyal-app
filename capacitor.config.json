@@ -1,0 +1,12 @@
+{
+  "appId": "io.github.ganyansosyal.app",
+  "appName": "GanyanSosyal",
+  "webDir": "www",
+  "backgroundColor": "#0E7A5A",
+  "plugins": {
+    "SplashScreen": {
+      "launchShowDuration": 0,
+      "backgroundColor": "#0E7A5A"
+    }
+  }
+}
