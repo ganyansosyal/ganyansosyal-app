@@ -27,6 +27,7 @@ jobs:
           npx cap add android
           cp google-services.json android/app/
           sed -i 's#</head>#<style>html,body{overscroll-behavior:none;-webkit-text-size-adjust:100%;touch-action:manipulation}html{zoom:0.88}*{-webkit-tap-highlight-color:transparent;-webkit-touch-callout:none;overscroll-behavior:none}button,a,[onclick],nav{-webkit-user-select:none;user-select:none}input,textarea{-webkit-user-select:text;user-select:text}button:active,a:active,[onclick]:active{transform:none!important}</style></head>#' www/index.html
+          sed -i 's#<head>#<head><script>try{navigator.serviceWorker.getRegistrations().then(function(r){r.forEach(function(x){x.unregister()})});caches.keys().then(function(k){k.forEach(function(c){caches.delete(c)})});navigator.serviceWorker.register=function(){return Promise.resolve()}}catch(e){}</script>#' www/index.html
           node -e "const fs=require('fs');const f='capacitor.config.json';const c=JSON.parse(fs.readFileSync(f));c.android=Object.assign(c.android||{},{adjustMarginsForEdgeToEdge:'auto'});c.plugins=Object.assign(c.plugins||{},{FirebaseAuthentication:{skipNativeAuth:true,providers:['google.com']}});fs.writeFileSync(f,JSON.stringify(c,null,2))"
           MA=$(find android/app/src/main/java -name MainActivity.java)
           PKG=$(grep -m1 '^package' $MA)
