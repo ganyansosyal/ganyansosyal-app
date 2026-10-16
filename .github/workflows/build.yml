@@ -1,0 +1,42 @@
+name: Build APK
+on: workflow_dispatch
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/checkout@v4
+        with:
+          repository: ganyansosyal/ganyansosyal
+          path: site
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: 21
+      - name: Hazirla
+        run: |
+          mkdir www assets
+          rsync -a --exclude='.git' --exclude='.github' --exclude='node_modules' --exclude='package*.json' --exclude='tjk-node.js' --exclude='cleanup.js' site/ www/
+          cp site/icon-512.png assets/logo.png
+          npm init -y
+          npm i @capacitor/core@7 @capacitor/cli@7 @capacitor/android@7 @capacitor/splash-screen@7
+          npm i -D @capacitor/assets@3
+          npx cap add android
+          npx capacitor-assets generate --android --iconBackgroundColor '#0E7A5A' --splashBackgroundColor '#0E7A5A'
+          npx cap sync android
+      - name: Derle
+        working-directory: android
+        run: ./gradlew assembleRelease
+      - name: Imzala
+        run: |
+          BT=$(ls -d $ANDROID_HOME/build-tools/* | sort -V | tail -1)
+          cd android/app/build/outputs/apk/release
+          $BT/zipalign -p -f 4 app-release-unsigned.apk aligned.apk
+          $BT/apksigner sign --ks $GITHUB_WORKSPACE/release.keystore --ks-pass pass:ganyan123 --key-pass pass:ganyan123 --ks-key-alias ganyan --out $GITHUB_WORKSPACE/GanyanSosyal.apk aligned.apk
+      - uses: actions/upload-artifact@v4
+        with:
+          name: GanyanSosyal-APK
+          path: GanyanSosyal.apk
