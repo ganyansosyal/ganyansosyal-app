@@ -38,10 +38,27 @@
       .catch(function (e) { throw cancelled(e) ? abort() : e; });
   }
 
+  function uniqueName(n) {
+    n = safeName(n || 'kupon.png');
+    var i = n.lastIndexOf('.');
+    var base = i > 0 ? n.slice(0, i) : n, ext = i > 0 ? n.slice(i) : '.png';
+    return base + '_' + Date.now() + ext;
+  }
+  // Indir: once dogrudan galeriye (Pictures/GanyanSosyal) kaydet, olmazsa paylasim menusu
   function handleAnchor(a) {
     return fetch(a.href)
       .then(function (r) { return r.blob(); })
-      .then(function (b) { return saveAndShare(b, a.download || 'kupon.png'); })
+      .then(function (b) {
+        var name = uniqueName(a.download);
+        if (window.NativeSave) {
+          return blobToBase64(b).then(function (b64) {
+            var ok = false;
+            try { ok = window.NativeSave.saveImage(b64, name, b.type || 'image/png'); } catch (e) {}
+            if (!ok) return saveAndShare(b, name);
+          });
+        }
+        return saveAndShare(b, name);
+      })
       .catch(function (e) { if (!cancelled(e)) console.error('Indirme hatasi', e); });
   }
   function isFileLink(a) {
