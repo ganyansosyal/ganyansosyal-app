@@ -24,8 +24,9 @@ jobs:
           rsync -a --exclude='.git' --exclude='.github' --exclude='node_modules' --exclude='package*.json' --exclude='tjk-node.js' --exclude='cleanup.js' site/ www/
           cp site/icon-512.png assets/logo.png
           curl -fsSL https://cdnjs.cloudflare.com/ajax/libs/html-to-image/1.11.11/html-to-image.min.js -o www/html-to-image.min.js || echo "html-to-image indirilemedi"
+          cp native-bridge.js www/native-bridge.js
           npm init -y
-          npm i @capacitor/core@7 @capacitor/cli@7 @capacitor/android@7 @capacitor/splash-screen@7 @capacitor-firebase/authentication@7 firebase@11 @capacitor/status-bar@7
+          npm i @capacitor/core@7 @capacitor/cli@7 @capacitor/android@7 @capacitor/splash-screen@7 @capacitor-firebase/authentication@7 firebase@11 @capacitor/status-bar@7 @capacitor/filesystem@7 @capacitor/share@7
           npm i -D @capacitor/assets@3
           npx cap add android
           cp google-services.json android/app/
@@ -44,6 +45,8 @@ jobs:
 
           sed -i 's#</head>#<style>html,body{overscroll-behavior-y:none;-webkit-text-size-adjust:100%;touch-action:manipulation}*{-webkit-tap-highlight-color:transparent;-webkit-touch-callout:none}button,a,[onclick],nav{-webkit-user-select:none;user-select:none}input,textarea{-webkit-user-select:text;user-select:text}button:active,a:active,[onclick]:active{transform:none!important}nav,[class*=bottom-nav],[class*=bottomnav],[class*=tabbar],[class*=tab-bar],[id*=bottomNav],[id*=bottom-nav],[id*=bottomnav]{position:fixed!important;bottom:0!important;left:0;right:0;transform:none!important;translate:none!important;transition:none!important;animation:none!important;will-change:auto!important}nav *,[class*=bottom-nav] *,[class*=tabbar] *{transition:none!important;animation:none!important}[id=au-install],[id=inst-bar],[id=dw-inst]{display:none!important}</style></head>#' www/index.html
           sed -i 's#<head>#<head><script>try{Object.defineProperty(navigator,"standalone",{get:function(){return true}})}catch(e){}try{navigator.serviceWorker.getRegistrations().then(function(r){r.forEach(function(x){x.unregister()})});caches.keys().then(function(k){k.forEach(function(c){caches.delete(c)})});navigator.serviceWorker.register=function(){return Promise.resolve()}}catch(e){}</script>#' www/index.html
+
+          sed -i 's#</head>#<script src="native-bridge.js"></script></head>#' www/index.html
 
           node -e "const fs=require('fs');const f='capacitor.config.json';const c=JSON.parse(fs.readFileSync(f));c.android=Object.assign(c.android||{},{adjustMarginsForEdgeToEdge:'auto'});c.plugins=Object.assign(c.plugins||{},{FirebaseAuthentication:{skipNativeAuth:true,providers:['google.com']},StatusBar:{overlaysWebView:false,backgroundColor:'#0E7A5A',style:'DARK'}});fs.writeFileSync(f,JSON.stringify(c,null,2))"
 
