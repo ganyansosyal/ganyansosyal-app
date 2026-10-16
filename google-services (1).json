@@ -1,0 +1,55 @@
+{
+  "project_info": {
+    "project_number": "871686667838",
+    "project_id": "ganyansosyal",
+    "storage_bucket": "ganyansosyal.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:871686667838:android:b2d719eec96c86d0c69b6f",
+        "android_client_info": {
+          "package_name": "io.github.ganyansosyal.app"
+        }
+      },
+      "oauth_client": [
+        {
+          "client_id": "871686667838-12fm5md1e417i8m13j3j1df6kbuule9i.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "io.github.ganyansosyal.app",
+            "certificate_hash": "72a1a6f683dd7f45ef80e0c54c86d34919ab068e"
+          }
+        },
+        {
+          "client_id": "871686667838-6jsoht6lpmhpeml573pr5mn013krmmcl.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "io.github.ganyansosyal.app",
+            "certificate_hash": "d8cdb76ce581cb87b2a2bf80f43da14b837ad80c"
+          }
+        },
+        {
+          "client_id": "871686667838-pnva3a84epi19lnbl7g35dmojr5132b6.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
+      "api_key": [
+        {
+          "current_key": "AIzaSyD5DWfCjSHjstfcb2cLdJEyihSjrZ6175M"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": [
+            {
+              "client_id": "871686667838-pnva3a84epi19lnbl7g35dmojr5132b6.apps.googleusercontent.com",
+              "client_type": 3
+            }
+          ]
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
