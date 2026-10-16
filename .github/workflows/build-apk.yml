@@ -106,9 +106,29 @@ jobs:
 
       - name: Derle (APK)
         working-directory: android
-        run: ./gradlew assembleDebug
+        run: ./gradlew assembleRelease
+
+      - name: Keystore hazirla
+        env:
+          KEYSTORE_B64: ${{ secrets.KEYSTORE_B64 }}
+        run: echo "$KEYSTORE_B64" | base64 -d > "$RUNNER_TEMP/release.keystore"
+
+      - name: Imzala (APK)
+        env:
+          KS_PASS: ${{ secrets.KS_PASS }}
+          KS_ALIAS: ${{ secrets.KS_ALIAS }}
+        run: |
+          BT=$(ls -d $ANDROID_HOME/build-tools/* | sort -V | tail -1)
+          APK=$(ls android/app/build/outputs/apk/release/*.apk | head -1)
+          $BT/zipalign -p -f 4 "$APK" aligned.apk
+          $BT/apksigner sign --ks "$RUNNER_TEMP/release.keystore" \
+            --ks-key-alias "$KS_ALIAS" --ks-pass pass:"$KS_PASS" --key-pass pass:"$KS_PASS" \
+            --out GanyanSosyal.apk aligned.apk
+          echo "=== SHA-1 (Firebase'e eklenecek) ==="
+          keytool -list -v -keystore "$RUNNER_TEMP/release.keystore" -alias "$KS_ALIAS" -storepass "$KS_PASS" | grep -E "SHA1|SHA256"
+          rm -f "$RUNNER_TEMP/release.keystore"
 
       - uses: actions/upload-artifact@v4
         with:
           name: GanyanSosyal-APK
-          path: android/app/build/outputs/apk/debug/app-debug.apk
+          path: GanyanSosyal.apk
