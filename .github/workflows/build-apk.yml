@@ -1,0 +1,114 @@
+name: Build APK (Test)
+on: workflow_dispatch
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/checkout@v4
+        with:
+          repository: ganyansosyal/ganyansosyal
+          path: site
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: 21
+      - name: Hazirla
+        run: |
+          mkdir www assets
+          rsync -a --exclude='.git' --exclude='.github' --exclude='node_modules' --exclude='package*.json' --exclude='tjk-node.js' --exclude='cleanup.js' site/ www/
+          cp site/icon-512.png assets/logo.png
+          curl -fsSL https://cdnjs.cloudflare.com/ajax/libs/html-to-image/1.11.11/html-to-image.min.js -o www/html-to-image.min.js || echo "html-to-image indirilemedi"
+          cp native-bridge.js www/native-bridge.js
+          npm init -y
+          npm i @capacitor/core@7 @capacitor/cli@7 @capacitor/android@7 @capacitor/splash-screen@7 @capacitor-firebase/authentication@7 firebase@11 @capacitor/status-bar@7 @capacitor/filesystem@7 @capacitor/share@7
+          npm i -D @capacitor/assets@3
+          npx cap add android
+          cp google-services.json android/app/
+
+          sed -i 's/minSdkVersion = [0-9]*/minSdkVersion = 24/' android/variables.gradle
+          sed -i 's/compileSdkVersion = [0-9]*/compileSdkVersion = 36/; s/targetSdkVersion = [0-9]*/targetSdkVersion = 36/' android/variables.gradle
+          echo "android.suppressUnsupportedCompileSdk=36" >> android/gradle.properties
+          grep -E "minSdkVersion|compileSdkVersion|targetSdkVersion" android/variables.gradle
+
+          sed -i "s/versionCode [0-9]*/versionCode ${{ github.run_number }}/" android/app/build.gradle
+          sed -i "s/versionName \"[^\"]*\"/versionName \"1.0.${{ github.run_number }}\"/" android/app/build.gradle
+          grep -E "versionCode|versionName" android/app/build.gradle
+
+          sed -i 's|<item name="android:background">@null</item>|&<item name="android:windowOptOutEdgeToEdgeEnforcement">true</item><item name="android:statusBarColor">#0E7A5A</item><item name="android:navigationBarColor">#FFFFFF</item><item name="android:windowLightNavigationBar">true</item>|' android/app/src/main/res/values/styles.xml
+          grep -c OptOut android/app/src/main/res/values/styles.xml || echo "styles yamasi uygulanmadi"
+
+          sed -i 's#</head>#<style>html,body{overscroll-behavior-y:none;-webkit-text-size-adjust:100%;touch-action:manipulation}*{-webkit-tap-highlight-color:transparent;-webkit-touch-callout:none}button,a,[onclick],nav{-webkit-user-select:none;user-select:none}input,textarea{-webkit-user-select:text;user-select:text}button:active,a:active,[onclick]:active{transform:none!important}nav,[class*=bottom-nav],[class*=bottomnav],[class*=tabbar],[class*=tab-bar],[id*=bottomNav],[id*=bottom-nav],[id*=bottomnav]{position:fixed!important;bottom:0!important;left:0;right:0;transform:none!important;translate:none!important;transition:none!important;animation:none!important;will-change:auto!important}nav *,[class*=bottom-nav] *,[class*=tabbar] *{transition:none!important;animation:none!important}[id=au-install],[id=inst-bar],[id=dw-inst]{display:none!important}</style></head>#' www/index.html
+          sed -i 's#<head>#<head><script>try{Object.defineProperty(navigator,"standalone",{get:function(){return true}})}catch(e){}try{navigator.serviceWorker.getRegistrations().then(function(r){r.forEach(function(x){x.unregister()})});caches.keys().then(function(k){k.forEach(function(c){caches.delete(c)})});navigator.serviceWorker.register=function(){return Promise.resolve()}}catch(e){}</script>#' www/index.html
+
+          sed -i 's#</head>#<script src="native-bridge.js"></script></head>#' www/index.html
+
+          node -e "const fs=require('fs');const f='capacitor.config.json';const c=JSON.parse(fs.readFileSync(f));c.android=Object.assign(c.android||{},{adjustMarginsForEdgeToEdge:'auto'});c.plugins=Object.assign(c.plugins||{},{FirebaseAuthentication:{skipNativeAuth:true,providers:['google.com']},StatusBar:{overlaysWebView:false,backgroundColor:'#0E7A5A',style:'DARK'}});fs.writeFileSync(f,JSON.stringify(c,null,2))"
+
+          MA=$(find android/app/src/main/java -name MainActivity.java)
+          PKG=$(grep -m1 '^package' $MA)
+          cat > $MA <<EOF
+          $PKG
+
+          import android.os.Bundle;
+          import android.view.View;
+          import android.graphics.Color;
+          import com.getcapacitor.BridgeActivity;
+
+          public class MainActivity extends BridgeActivity {
+              @Override
+              public void onCreate(Bundle savedInstanceState) {
+                  super.onCreate(savedInstanceState);
+                  for (View v = getBridge().getWebView(); v != null; v = (v.getParent() instanceof View) ? (View) v.getParent() : null) { v.setOverScrollMode(View.OVER_SCROLL_NEVER); }
+                  getBridge().getWebView().getSettings().setTextZoom(100);
+                  getBridge().getWebView().getSettings().setUseWideViewPort(true);
+                  getBridge().getWebView().getSettings().setLoadWithOverviewMode(true);
+                  getBridge().getWebView().setInitialScale(0);
+                  getWindow().setSoftInputMode(android.view.WindowManager.LayoutParams.SOFT_INPUT_ADJUST_RESIZE);
+                  applyBars();
+              }
+
+              @Override
+              public void onResume() {
+                  super.onResume();
+                  applyBars();
+              }
+
+              @Override
+              public void onWindowFocusChanged(boolean hasFocus) {
+                  super.onWindowFocusChanged(hasFocus);
+                  if (hasFocus) applyBars();
+              }
+
+              private void applyBars() {
+                  android.view.Window w = getWindow();
+                  w.addFlags(android.view.WindowManager.LayoutParams.FLAG_DRAWS_SYSTEM_BAR_BACKGROUNDS);
+                  w.setStatusBarColor(Color.parseColor("#0E7A5A"));
+                  w.setNavigationBarColor(Color.parseColor("#FFFFFF"));
+                  w.setBackgroundDrawable(new android.graphics.drawable.ColorDrawable(Color.parseColor("#FFFFFF")));
+                  w.getDecorView().setBackgroundColor(Color.parseColor("#FFFFFF"));
+                  if (android.os.Build.VERSION.SDK_INT >= 26) {
+                      w.getDecorView().setSystemUiVisibility(w.getDecorView().getSystemUiVisibility() | View.SYSTEM_UI_FLAG_LIGHT_NAVIGATION_BAR);
+                  }
+                  if (android.os.Build.VERSION.SDK_INT >= 29) {
+                      w.setNavigationBarContrastEnforced(false);
+                  }
+              }
+          }
+          EOF
+          npx capacitor-assets generate --android --iconBackgroundColor '#0E7A5A' --splashBackgroundColor '#0E7A5A'
+          npx cap sync android
+
+      - name: Derle (APK)
+        working-directory: android
+        run: ./gradlew assembleDebug
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: GanyanSosyal-APK
+          path: android/app/build/outputs/apk/debug/app-debug.apk
