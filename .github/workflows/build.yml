@@ -69,6 +69,7 @@ jobs:
                   getBridge().getWebView().getSettings().setUseWideViewPort(true);
                   getBridge().getWebView().getSettings().setLoadWithOverviewMode(true);
                   getBridge().getWebView().setInitialScale(0);
+          getBridge().getWebView().addJavascriptInterface(new NativeSave(), "NativeSave");
                   getWindow().setSoftInputMode(android.view.WindowManager.LayoutParams.SOFT_INPUT_ADJUST_RESIZE);
                   applyBars();
               }
@@ -99,6 +100,29 @@ jobs:
                       w.setNavigationBarContrastEnforced(false);
                   }
               }
+
+                        public class NativeSave {
+                            @android.webkit.JavascriptInterface
+                            public boolean saveImage(String b64, String name, String mime) {
+                                try {
+                                    if (android.os.Build.VERSION.SDK_INT < 29) return false;
+                                    byte[] data = android.util.Base64.decode(b64, android.util.Base64.DEFAULT);
+                                    android.content.ContentValues cv = new android.content.ContentValues();
+                                    cv.put(android.provider.MediaStore.Images.Media.DISPLAY_NAME, name);
+                                    cv.put(android.provider.MediaStore.Images.Media.MIME_TYPE, (mime == null || mime.length() == 0) ? "image/png" : mime);
+                                    cv.put(android.provider.MediaStore.Images.Media.RELATIVE_PATH, "Pictures/GanyanSosyal");
+                                    android.net.Uri uri = getContentResolver().insert(android.provider.MediaStore.Images.Media.EXTERNAL_CONTENT_URI, cv);
+                                    if (uri == null) return false;
+                                    java.io.OutputStream os = getContentResolver().openOutputStream(uri);
+                                    if (os == null) return false;
+                                    os.write(data);
+                                    os.close();
+                                    return true;
+                                } catch (Exception e) {
+                                    return false;
+                                }
+                            }
+                        }
           }
           EOF
           npx capacitor-assets generate --android --iconBackgroundColor '#0E7A5A' --splashBackgroundColor '#0E7A5A'
