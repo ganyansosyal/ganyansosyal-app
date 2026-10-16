@@ -1,10 +1,10 @@
-name: Build APK
+name: Build AAB (Google Play)
 on: workflow_dispatch
 jobs:
   build:
     runs-on: ubuntu-latest
     permissions:
-      contents: write
+      contents: read
     steps:
       - uses: actions/checkout@v4
       - uses: actions/checkout@v4
@@ -29,72 +29,22 @@ jobs:
           npm i -D @capacitor/assets@3
           npx cap add android
           cp google-services.json android/app/
+
+          # Surum numaralari: Play her yuklemede artan versionCode ister
+          sed -i "s/versionCode [0-9]*/versionCode ${{ github.run_number }}/" android/app/build.gradle
+          sed -i "s/versionName \"[^\"]*\"/versionName \"1.0.${{ github.run_number }}\"/" android/app/build.gradle
+          grep -E "versionCode|versionName" android/app/build.gradle
+
           sed -i 's|<item name="android:background">@null</item>|&<item name="android:windowOptOutEdgeToEdgeEnforcement">true</item><item name="android:statusBarColor">#0E7A5A</item><item name="android:navigationBarColor">#FFFFFF</item><item name="android:windowLightNavigationBar">true</item>|' android/app/src/main/res/values/styles.xml
           grep -c OptOut android/app/src/main/res/values/styles.xml || echo "styles yamasi uygulanmadi"
-          sed -i 's#<application#<uses-permission android:name="android.permission.REQUEST_INSTALL_PACKAGES" /><application#' android/app/src/main/AndroidManifest.xml
-          grep -c REQUEST_INSTALL_PACKAGES android/app/src/main/AndroidManifest.xml || echo "manifest izni eklenmedi"
-          sed -i 's#</head>#<style>html,body{overscroll-behavior-y:none;-webkit-text-size-adjust:100%;touch-action:manipulation}*{-webkit-tap-highlight-color:transparent;-webkit-touch-callout:none}button,a,[onclick],nav{-webkit-user-select:none;user-select:none}input,textarea{-webkit-user-select:text;user-select:text}button:active,a:active,[onclick]:active{transform:none!important}nav,[class*=bottom-nav],[class*=bottomnav],[class*=tabbar],[class*=tab-bar],[id*=bottomNav],[id*=bottom-nav],[id*=bottomnav]{position:fixed!important;bottom:0!important;left:0;right:0;transform:none!important;translate:none!important;transition:none!important;animation:none!important;will-change:auto!important}nav *,[class*=bottom-nav] *,[class*=tabbar] *{transition:none!important;animation:none!important}</style></head>#' www/index.html
-          sed -i 's#<head>#<head><script>try{navigator.serviceWorker.getRegistrations().then(function(r){r.forEach(function(x){x.unregister()})});caches.keys().then(function(k){k.forEach(function(c){caches.delete(c)})});navigator.serviceWorker.register=function(){return Promise.resolve()}}catch(e){}</script>#' www/index.html
-          cat > www/app-update.js <<'JSEOF'
-          (function () {
-            function native() { return !!(window.Capacitor && Capacitor.isNativePlatform && Capacitor.isNativePlatform()); }
-            function start() {
-              if (!native()) return;
 
-              // APK icinde "Ana ekrana ekle / Yukle" onerileri gereksiz: uygulama zaten yuklu sayilsin
-              try { Object.defineProperty(navigator, 'standalone', { get: function () { return true; } }); } catch (e) {}
-              var st = document.createElement('style');
-              st.textContent = '#au-install,#inst-bar,#dw-inst{display:none!important}';
-              document.head.appendChild(st);
+          # NOT: REQUEST_INSTALL_PACKAGES izni ve kendi kendine guncelleme kodu Play surumunde YOK (politika ihlali)
 
-              // Guncelleme kontrolu (6 saatte bir)
-              try {
-                var last = parseInt(localStorage.getItem('gs-upd-check') || '0', 10);
-                if (Date.now() - last < 6 * 3600 * 1000) return;
-              } catch (e) {}
+          sed -i 's#</head>#<style>html,body{overscroll-behavior-y:none;-webkit-text-size-adjust:100%;touch-action:manipulation}*{-webkit-tap-highlight-color:transparent;-webkit-touch-callout:none}button,a,[onclick],nav{-webkit-user-select:none;user-select:none}input,textarea{-webkit-user-select:text;user-select:text}button:active,a:active,[onclick]:active{transform:none!important}nav,[class*=bottom-nav],[class*=bottomnav],[class*=tabbar],[class*=tab-bar],[id*=bottomNav],[id*=bottom-nav],[id*=bottomnav]{position:fixed!important;bottom:0!important;left:0;right:0;transform:none!important;translate:none!important;transition:none!important;animation:none!important;will-change:auto!important}nav *,[class*=bottom-nav] *,[class*=tabbar] *{transition:none!important;animation:none!important}[id=au-install],[id=inst-bar],[id=dw-inst]{display:none!important}</style></head>#' www/index.html
+          sed -i 's#<head>#<head><script>try{Object.defineProperty(navigator,"standalone",{get:function(){return true}})}catch(e){}try{navigator.serviceWorker.getRegistrations().then(function(r){r.forEach(function(x){x.unregister()})});caches.keys().then(function(k){k.forEach(function(c){caches.delete(c)})});navigator.serviceWorker.register=function(){return Promise.resolve()}}catch(e){}</script>#' www/index.html
 
-              fetch('app-version.json').then(function (r) { return r.json(); }).then(function (v) {
-                return fetch('https://api.github.com/repos/' + v.repo + '/releases/tags/apk')
-                  .then(function (r) { return r.json(); })
-                  .then(function (rel) {
-                    try { localStorage.setItem('gs-upd-check', String(Date.now())); } catch (e) {}
-                    var m = /build\s*(\d+)/i.exec((rel && rel.body) || '');
-                    var latest = m ? parseInt(m[1], 10) : 0;
-                    if (latest > v.build) showUpdate('https://github.com/' + v.repo + '/releases/download/apk/GanyanSosyal.apk');
-                  });
-              }).catch(function () {});
-            }
-
-            function showUpdate(url) {
-              var b = document.createElement('div');
-              b.style.cssText = 'position:fixed;left:12px;right:12px;top:calc(env(safe-area-inset-top,0px) + 70px);z-index:99999;background:#0E7A5A;color:#fff;border-radius:16px;padding:12px 14px;display:flex;align-items:center;gap:10px;box-shadow:0 8px 24px rgba(0,0,0,.25);font:600 14px system-ui,sans-serif';
-              b.innerHTML = '<span id="gs-upd-txt" style="flex:1">Yeni s\u00fcr\u00fcm var. G\u00fcncellemek i\u00e7in dokun.</span>' +
-                '<button id="gs-upd-go" style="background:#fff;color:#0E7A5A;border:0;border-radius:12px;padding:8px 14px;font:800 13px system-ui,sans-serif">G\u00fcncelle</button>' +
-                '<button id="gs-upd-x" style="background:transparent;color:#fff;border:0;font:800 18px system-ui,sans-serif;padding:0 4px">\u00d7</button>';
-              document.body.appendChild(b);
-              var txt = document.getElementById('gs-upd-txt');
-              var go = document.getElementById('gs-upd-go');
-              window.__gsUpd = function (p) { txt.textContent = '\u0130ndiriliyor %' + p; go.style.display = 'none'; };
-              window.__gsUpdMsg = function (m) {
-                go.style.display = '';
-                if (m === 'perm') txt.textContent = 'A\u00e7\u0131lan ayarda izni a\u00e7, geri d\u00f6n\u00fcp tekrar G\u00fcncelle\u2019ye bas.';
-                else if (m === 'ready') { txt.textContent = 'Kurulum ekran\u0131nda G\u00fcncelle\u2019ye bas.'; go.style.display = 'none'; }
-                else txt.textContent = '\u0130ndirilemedi. Tekrar dene.';
-              };
-              go.onclick = function () {
-                if (window.GSUpdate && GSUpdate.install) { txt.textContent = '\u0130ndiriliyor %0'; GSUpdate.install(url); }
-                else window.location.href = url;
-              };
-              document.getElementById('gs-upd-x').onclick = function () { b.remove(); };
-            }
-
-            if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', function () { setTimeout(start, 1500); });
-            else setTimeout(start, 1500);
-          })();
-          JSEOF
-          sed -i 's#</head>#<script src="app-update.js"></script></head>#' www/index.html
-          echo '{"build": ${{ github.run_number }}, "repo": "${{ github.repository }}"}' > www/app-version.json
           node -e "const fs=require('fs');const f='capacitor.config.json';const c=JSON.parse(fs.readFileSync(f));c.android=Object.assign(c.android||{},{adjustMarginsForEdgeToEdge:'auto'});c.plugins=Object.assign(c.plugins||{},{FirebaseAuthentication:{skipNativeAuth:true,providers:['google.com']},StatusBar:{overlaysWebView:false,backgroundColor:'#0E7A5A',style:'DARK'}});fs.writeFileSync(f,JSON.stringify(c,null,2))"
+
           MA=$(find android/app/src/main/java -name MainActivity.java)
           PKG=$(grep -m1 '^package' $MA)
           cat > $MA <<EOF
@@ -114,71 +64,8 @@ jobs:
                   getBridge().getWebView().getSettings().setUseWideViewPort(true);
                   getBridge().getWebView().getSettings().setLoadWithOverviewMode(true);
                   getBridge().getWebView().setInitialScale(0);
-                          getWindow().setSoftInputMode(android.view.WindowManager.LayoutParams.SOFT_INPUT_ADJUST_RESIZE);
+                  getWindow().setSoftInputMode(android.view.WindowManager.LayoutParams.SOFT_INPUT_ADJUST_RESIZE);
                   applyBars();
-                  getBridge().getWebView().addJavascriptInterface(new UpdateBridge(), "GSUpdate");
-              }
-
-              public class UpdateBridge {
-                  @android.webkit.JavascriptInterface
-                  public void install(final String url) {
-                      if (android.os.Build.VERSION.SDK_INT >= 26 && !getPackageManager().canRequestPackageInstalls()) {
-                          runOnUiThread(new Runnable() { public void run() {
-                              try {
-                                  android.content.Intent st = new android.content.Intent(android.provider.Settings.ACTION_MANAGE_UNKNOWN_APP_SOURCES, android.net.Uri.parse("package:" + getPackageName()));
-                                  startActivity(st);
-                              } catch (Exception e) {}
-                              runJs("window.__gsUpdMsg&&__gsUpdMsg('perm')");
-                          }});
-                          return;
-                      }
-                      new Thread(new Runnable() { public void run() { downloadApk(url); } }).start();
-                  }
-              }
-
-              private void runJs(final String code) {
-                  runOnUiThread(new Runnable() { public void run() { getBridge().getWebView().evaluateJavascript(code, null); } });
-              }
-
-              private void downloadApk(String url) {
-                  try {
-                      java.io.File dir = new java.io.File(getCacheDir(), "update");
-                      dir.mkdirs();
-                      final java.io.File f = new java.io.File(dir, "GanyanSosyal.apk");
-                      java.net.HttpURLConnection c = (java.net.HttpURLConnection) new java.net.URL(url).openConnection();
-                      c.setConnectTimeout(15000);
-                      c.setReadTimeout(30000);
-                      c.connect();
-                      int total = c.getContentLength();
-                      java.io.InputStream in = c.getInputStream();
-                      java.io.FileOutputStream out = new java.io.FileOutputStream(f);
-                      byte[] buf = new byte[65536];
-                      int n; long done = 0; int last = -1;
-                      while ((n = in.read(buf)) > 0) {
-                          out.write(buf, 0, n);
-                          done += n;
-                          if (total > 0) {
-                              int p = (int) (done * 100 / total);
-                              if (p != last) { last = p; runJs("window.__gsUpd&&__gsUpd(" + p + ")"); }
-                          }
-                      }
-                      out.close();
-                      in.close();
-                      runOnUiThread(new Runnable() { public void run() {
-                          try {
-                              android.net.Uri u = androidx.core.content.FileProvider.getUriForFile(MainActivity.this, getPackageName() + ".fileprovider", f);
-                              android.content.Intent it = new android.content.Intent(android.content.Intent.ACTION_VIEW);
-                              it.setDataAndType(u, "application/vnd.android.package-archive");
-                              it.addFlags(android.content.Intent.FLAG_GRANT_READ_URI_PERMISSION | android.content.Intent.FLAG_ACTIVITY_NEW_TASK);
-                              startActivity(it);
-                              runJs("window.__gsUpdMsg&&__gsUpdMsg('ready')");
-                          } catch (Exception e) {
-                              runJs("window.__gsUpdMsg&&__gsUpdMsg('error')");
-                          }
-                      }});
-                  } catch (Exception e) {
-                      runJs("window.__gsUpdMsg&&__gsUpdMsg('error')");
-                  }
               }
 
               @Override
@@ -211,25 +98,30 @@ jobs:
           EOF
           npx capacitor-assets generate --android --iconBackgroundColor '#0E7A5A' --splashBackgroundColor '#0E7A5A'
           npx cap sync android
-      - name: Derle
+
+      - name: Derle (AAB)
         working-directory: android
-        run: ./gradlew assembleRelease
+        run: ./gradlew bundleRelease
+
+      - name: Keystore hazirla
+        env:
+          KEYSTORE_B64: ${{ secrets.KEYSTORE_B64 }}
+        run: echo "$KEYSTORE_B64" | base64 -d > "$RUNNER_TEMP/release.keystore"
+
       - name: Imzala
+        env:
+          KS_PASS: ${{ secrets.KS_PASS }}
+          KS_ALIAS: ${{ secrets.KS_ALIAS }}
         run: |
-          BT=$(ls -d $ANDROID_HOME/build-tools/* | sort -V | tail -1)
-          cd android/app/build/outputs/apk/release
-          $BT/zipalign -p -f 4 app-release-unsigned.apk aligned.apk
-          $BT/apksigner sign --ks $GITHUB_WORKSPACE/release.keystore --ks-pass pass:ganyan123 --key-pass pass:ganyan123 --ks-key-alias ganyan --out $GITHUB_WORKSPACE/GanyanSosyal.apk aligned.apk
-          keytool -list -v -keystore $GITHUB_WORKSPACE/release.keystore -storepass ganyan123 -alias ganyan | grep SHA1
+          jarsigner -sigalg SHA256withRSA -digestalg SHA-256 \
+            -keystore "$RUNNER_TEMP/release.keystore" \
+            -storepass "$KS_PASS" -keypass "$KS_PASS" \
+            -signedjar GanyanSosyal.aab \
+            android/app/build/outputs/bundle/release/app-release.aab "$KS_ALIAS"
+          jarsigner -verify GanyanSosyal.aab | head -3
+          rm -f "$RUNNER_TEMP/release.keystore"
+
       - uses: actions/upload-artifact@v4
         with:
-          name: GanyanSosyal-APK
-          path: GanyanSosyal.apk
-      - name: APK'yi indirilebilir surume yukle
-        uses: softprops/action-gh-release@v2
-        with:
-          tag_name: apk
-          name: GanyanSosyal APK (son surum)
-          files: GanyanSosyal.apk
-          body: "build ${{ github.run_number }}"
-          make_latest: true
+          name: GanyanSosyal-AAB
+          path: GanyanSosyal.aab
