@@ -30,7 +30,6 @@ jobs:
           grep -c OptOut android/app/src/main/res/values/styles.xml || echo "styles yamasi uygulanmadi"
           sed -i 's#</head>#<style>html,body{overscroll-behavior-y:none;-webkit-text-size-adjust:100%;touch-action:manipulation}*{-webkit-tap-highlight-color:transparent;-webkit-touch-callout:none}button,a,[onclick],nav{-webkit-user-select:none;user-select:none}input,textarea{-webkit-user-select:text;user-select:text}button:active,a:active,[onclick]:active{transform:none!important}nav,[class*=bottom-nav],[class*=bottomnav],[class*=tabbar],[class*=tab-bar],[id*=bottomNav],[id*=bottom-nav],[id*=bottomnav]{position:fixed!important;bottom:0!important;left:0;right:0;transform:none!important;translate:none!important;transition:none!important;animation:none!important;will-change:auto!important}nav *,[class*=bottom-nav] *,[class*=tabbar] *{transition:none!important;animation:none!important}</style></head>#' www/index.html
           sed -i 's#<head>#<head><script>try{navigator.serviceWorker.getRegistrations().then(function(r){r.forEach(function(x){x.unregister()})});caches.keys().then(function(k){k.forEach(function(c){caches.delete(c)})});navigator.serviceWorker.register=function(){return Promise.resolve()}}catch(e){}</script>#' www/index.html
-          sed -i 's#width=445, viewport-fit=cover, user-scalable=no#width=device-width, initial-scale=1, minimum-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover#' www/index.html
           node -e "const fs=require('fs');const f='capacitor.config.json';const c=JSON.parse(fs.readFileSync(f));c.android=Object.assign(c.android||{},{adjustMarginsForEdgeToEdge:'auto'});c.plugins=Object.assign(c.plugins||{},{FirebaseAuthentication:{skipNativeAuth:true,providers:['google.com']},StatusBar:{overlaysWebView:false,backgroundColor:'#0E7A5A',style:'DARK'}});fs.writeFileSync(f,JSON.stringify(c,null,2))"
           MA=$(find android/app/src/main/java -name MainActivity.java)
           PKG=$(grep -m1 '^package' $MA)
@@ -39,26 +38,17 @@ jobs:
 
           import android.os.Bundle;
           import android.view.View;
-          import android.content.Context;
-          import android.content.res.Configuration;
-          import android.util.DisplayMetrics;
           import com.getcapacitor.BridgeActivity;
 
           public class MainActivity extends BridgeActivity {
-              @Override
-              protected void attachBaseContext(Context base) {
-                  Configuration cfg = new Configuration(base.getResources().getConfiguration());
-                  DisplayMetrics dm = base.getResources().getDisplayMetrics();
-                  float widthDp = dm.widthPixels / dm.density;
-                  float f = Math.max(0.7f, Math.min(1.0f, widthDp / 467f));
-                  cfg.densityDpi = Math.round(cfg.densityDpi * f);
-                  super.attachBaseContext(base.createConfigurationContext(cfg));
-              }
               @Override
               public void onCreate(Bundle savedInstanceState) {
                   super.onCreate(savedInstanceState);
                   for (View v = getBridge().getWebView(); v != null; v = (v.getParent() instanceof View) ? (View) v.getParent() : null) { v.setOverScrollMode(View.OVER_SCROLL_NEVER); }
                   getBridge().getWebView().getSettings().setTextZoom(100);
+                  getBridge().getWebView().getSettings().setUseWideViewPort(true);
+                  getBridge().getWebView().getSettings().setLoadWithOverviewMode(true);
+                  getBridge().getWebView().setInitialScale(0);
                           getWindow().setSoftInputMode(android.view.WindowManager.LayoutParams.SOFT_INPUT_ADJUST_RESIZE);
               }
           }
