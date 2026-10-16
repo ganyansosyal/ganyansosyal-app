@@ -29,7 +29,7 @@ jobs:
           npm i -D @capacitor/assets@3
           npx cap add android
           cp google-services.json android/app/
-          sed -i 's|<item name="android:background">@null</item>|&<item name="android:windowOptOutEdgeToEdgeEnforcement">true</item><item name="android:statusBarColor">#0E7A5A</item><item name="android:navigationBarColor">#0E7A5A</item><item name="android:windowLightNavigationBar">false</item>|' android/app/src/main/res/values/styles.xml
+          sed -i 's|<item name="android:background">@null</item>|&<item name="android:windowOptOutEdgeToEdgeEnforcement">true</item><item name="android:statusBarColor">#0E7A5A</item><item name="android:navigationBarColor">#FFFFFF</item><item name="android:windowLightNavigationBar">true</item>|' android/app/src/main/res/values/styles.xml
           grep -c OptOut android/app/src/main/res/values/styles.xml || echo "styles yamasi uygulanmadi"
           sed -i 's#<application#<uses-permission android:name="android.permission.REQUEST_INSTALL_PACKAGES" /><application#' android/app/src/main/AndroidManifest.xml
           grep -c REQUEST_INSTALL_PACKAGES android/app/src/main/AndroidManifest.xml || echo "manifest izni eklenmedi"
@@ -197,9 +197,12 @@ jobs:
                   android.view.Window w = getWindow();
                   w.addFlags(android.view.WindowManager.LayoutParams.FLAG_DRAWS_SYSTEM_BAR_BACKGROUNDS);
                   w.setStatusBarColor(Color.parseColor("#0E7A5A"));
-                  w.setNavigationBarColor(Color.parseColor("#0E7A5A"));
-                  w.setBackgroundDrawable(new android.graphics.drawable.ColorDrawable(Color.parseColor("#0E7A5A")));
-                  w.getDecorView().setBackgroundColor(Color.parseColor("#0E7A5A"));
+                  w.setNavigationBarColor(Color.parseColor("#FFFFFF"));
+                  w.setBackgroundDrawable(new android.graphics.drawable.ColorDrawable(Color.parseColor("#FFFFFF")));
+                  w.getDecorView().setBackgroundColor(Color.parseColor("#FFFFFF"));
+                  if (android.os.Build.VERSION.SDK_INT >= 26) {
+                      w.getDecorView().setSystemUiVisibility(w.getDecorView().getSystemUiVisibility() | View.SYSTEM_UI_FLAG_LIGHT_NAVIGATION_BAR);
+                  }
                   if (android.os.Build.VERSION.SDK_INT >= 29) {
                       w.setNavigationBarContrastEnforced(false);
                   }
