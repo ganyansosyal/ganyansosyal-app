@@ -148,7 +148,6 @@ jobs:
             -signedjar GanyanSosyal.aab \
             android/app/build/outputs/bundle/release/app-release.aab "$KS_ALIAS"
           jarsigner -verify GanyanSosyal.aab | head -3
-          keytool -list -v -keystore "$RUNNER_TEMP/release.keystore" -alias "$KS_ALIAS" -storepass "$KS_PASS" || true
           rm -f "$RUNNER_TEMP/release.keystore"
 
       - uses: actions/upload-artifact@v4
