@@ -1,4 +1,4 @@
-name: Build AAB (Google Play)
+Name: Build AAB (Google Play)
 on: workflow_dispatch
 jobs:
   build:
@@ -148,9 +148,11 @@ jobs:
             -signedjar GanyanSosyal.aab \
             android/app/build/outputs/bundle/release/app-release.aab "$KS_ALIAS"
           jarsigner -verify GanyanSosyal.aab | head -3
+          keytool -list -v -keystore "$RUNNER_TEMP/release.keystore" -alias "$KS_ALIAS" -storepass "$KS_PASS"
           rm -f "$RUNNER_TEMP/release.keystore"
 
       - uses: actions/upload-artifact@v4
         with:
           name: GanyanSosyal-AAB
           path: GanyanSosyal.aab
+          
